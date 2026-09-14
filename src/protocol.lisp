@@ -125,8 +125,15 @@
   (or (%bound-symbol-value :http-protocol "*HTTP-BACKEND*")
       (%bound-symbol-value :http-protocol "*HTTP-CLIENT*")))
 
-(defun %http-get (url &key params)
-  "GET URL via http-protocol SEND when a client/backend is bound."
+(defvar *search-web-timeout* 45
+  "Seconds for SearXNG /search. Passed as http-protocol request :timeout.")
+
+(defvar *fetch-page-timeout* 20
+  "Seconds for fetch-page GET. Fat/binary URLs must not hang the caller.")
+
+(defun %http-get (url &key params headers timeout)
+  "GET URL via http-protocol SEND when a client/backend is bound.
+   TIMEOUT is a number, plist, or HTTP-TIMEOUT (see http-protocol)."
   (unless (%http-bound-p)
     (error 'websearch-error
            :message "http-protocol client/backend is not bound"))
@@ -138,7 +145,11 @@
          (make-req (%find-symbol :http-protocol "MAKE-HTTP-REQUEST"))
          (send (%find-symbol :http-protocol "SEND"))
          (request (when (and make-req (fboundp make-req))
-                    (funcall make-req :method :get :url url :params params))))
+                    (apply make-req
+                           :method :get :url url
+                           (append (when params (list :params params))
+                                   (when headers (list :headers headers))
+                                   (when timeout (list :timeout timeout)))))))
     (unless (and backend client send (fboundp send) request)
       (error 'websearch-error
              :message "http-protocol SEND requires *http-backend*"))
@@ -277,3 +288,61 @@
       (and (%html-backend-bound-p)
            (%extract-via-html html))
       (strip-html-tags html)))
+
+(defun %ends-with (string suffix)
+  (let ((n (length string))
+        (m (length suffix)))
+    (and (>= n m) (string-equal string suffix :start1 (- n m)))))
+
+(defun %url-path (url)
+  (let* ((s (string-downcase (or url "")))
+         (cut (or (position #\? s) (position #\# s) (length s))))
+    (subseq s 0 cut)))
+
+(defun %binary-url-p (url)
+  "True for archives/media that fetch-page must not download."
+  (let ((path (%url-path url)))
+    (some (lambda (ext) (%ends-with path ext))
+          '(".zip" ".tar" ".gz" ".tgz" ".7z"
+            ".png" ".jpg" ".jpeg" ".gif" ".webp" ".ico"
+            ".mp4" ".mp3" ".wav" ".mov"
+            ".woff" ".woff2" ".ttf"))))
+
+(defun %url-looks-like-pdf (url)
+  (%ends-with (%url-path url) ".pdf"))
+
+(defun %media-type (content-type)
+  (when (and content-type (plusp (length (string content-type))))
+    (let* ((raw (string-trim '(#\Space #\Tab) (string content-type)))
+           (semi (position #\; raw)))
+      (string-downcase (if semi (subseq raw 0 semi) raw)))))
+
+(defun %textual-media-type-p (mt)
+  (and mt
+       (or (eql 0 (search "text/" mt))
+           (search "html" mt)
+           (search "+xml" mt)
+           (search "/xml" mt)
+           (search "json" mt)
+           (search "javascript" mt))))
+
+(defun %pdf-media-type-p (mt)
+  (and mt (search "pdf" mt)))
+
+(defun extract-fetched-page (body &key content-type url)
+  "Extract text from a fetched body. HTML/text → EXTRACT-PAGE-TEXT.
+   PDF → doc-extract when that package exists, else NIL (do not run the
+   HTML stripper on binary). Other binary media → NIL."
+  (let ((mt (%media-type content-type)))
+    (cond
+      ((or (%pdf-media-type-p mt) (and (null mt) (%url-looks-like-pdf url)))
+       (and (%doc-extract-package)
+            (%extract-via-doc-extract body url)))
+      ((or (null mt) (%textual-media-type-p mt))
+       (extract-page-text body :url url))
+      (t nil))))
+
+(defun %response-header (response name)
+  (let ((fn (%find-symbol :http-protocol "RESPONSE-HEADER")))
+    (when (and fn (fboundp fn))
+      (funcall fn response name))))

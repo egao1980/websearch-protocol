@@ -48,6 +48,31 @@
     (ok (search "A&B" text))
     (ok (search "<c>" text))))
 
+(deftest extract-fetched-page-html
+  (let ((text (websearch-protocol:extract-fetched-page
+               "<html><body><p>Hello <b>world</b>.</p></body></html>"
+               :content-type "text/html; charset=utf-8"
+               :url "https://ex.test/")))
+    (ok (search "Hello world" text))
+    (ng (search "<p>" text))))
+
+(deftest extract-fetched-page-skips-pdf
+  (ok (null (websearch-protocol:extract-fetched-page
+             "%PDF-1.4 binary junk <p>not html</p>"
+             :content-type "application/pdf"
+             :url "https://ex.test/paper.pdf"))))
+
+(deftest extract-fetched-page-skips-octet-stream
+  (ok (null (websearch-protocol:extract-fetched-page
+             (make-array 8 :element-type '(unsigned-byte 8) :initial-element 0)
+             :content-type "application/octet-stream"
+             :url "https://ex.test/blob.bin"))))
+
+(deftest extract-fetched-page-pdf-url-without-type
+  (ok (null (websearch-protocol:extract-fetched-page
+             "%PDF-1.4"
+             :url "https://ex.test/a.pdf?dl=1"))))
+
 (deftest parse-searxng-results
   (let* ((row (make-hash-table :test 'equal))
          (decoded (make-hash-table :test 'equal)))

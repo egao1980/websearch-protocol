@@ -26,8 +26,11 @@
 
            #:search-web
            #:fetch-page
+           #:*search-web-timeout*
+           #:*fetch-page-timeout*
            #:strip-html-tags
            #:extract-page-text
+           #:extract-fetched-page
 
            #:searxng-backend
            #:searxng-backend-p

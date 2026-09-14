@@ -7,7 +7,7 @@ Lispy **CLOS** web search for [cl-stack](https://github.com/egao1980/cl-stack). 
 | `websearch-protocol` (`stack-websearch`) | Protocol + SearXNG backend + mock | this repo |
 | `websearch-protocol/capability` | `:world` `web-search` adapter | this repo |
 
-`http-protocol`, `json-protocol`, and `html-protocol` are **soft-used** (no hard `:depends-on`). SearXNG methods require an HTTP client/backend bound (`*http-backend*` / `*http-client*`) and `*json-backend*` for decode. `fetch-page` prefers `doc-extract-protocol` when that package exists, then `html-protocol:parse` + `element-text` if `*html-backend*` is bound, else a naive tag stripper.
+`http-protocol`, `json-protocol`, and `html-protocol` are **soft-used** (no hard `:depends-on`). SearXNG methods require an HTTP client/backend bound (`*http-backend*` / `*http-client*`) and `*json-backend*` for decode. `search-web` / `fetch-page` pass `*search-web-timeout*` (45s) and `*fetch-page-timeout*` (20s) on the HTTP request. `fetch-page` skips archives/media URLs and non-text `Content-Type`s (PDFs go through `doc-extract-protocol` when that package exists — they are **not** run through the HTML stripper). HTML extraction prefers `doc-extract-protocol`, then `html-protocol:parse` + `element-text` if `*html-backend*` is bound, else a naive tag stripper. `parse-searxng-results` accepts jzon vectors for `results`.
 
 ```lisp
 (asdf:load-system "websearch-protocol")
