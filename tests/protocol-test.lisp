@@ -29,10 +29,11 @@
     (ok (equal "T1" (websearch-protocol:search-hit-title (first got))))))
 
 (deftest fetch-page-strips-html
-  (let* ((html (format nil "~
-<html><head><style>x{}</style></head>~
-<body><h1>Title</h1><p>Hello <b>world</b>.</p>~
-<script>alert(1)</script></body></html>"))
+  ;; No ~<newline> directive: a CRLF checkout (Windows) makes it "~Return".
+  (let* ((html (concatenate 'string
+                            "<html><head><style>x{}</style></head>"
+                            "<body><h1>Title</h1><p>Hello <b>world</b>.</p>"
+                            "<script>alert(1)</script></body></html>"))
          (b (websearch-protocol:make-mock-websearch-backend
              :pages `(("https://ex.test/p" . ,html))))
          (text (websearch-protocol:fetch-page b "https://ex.test/p")))
