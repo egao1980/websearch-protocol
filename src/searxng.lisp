@@ -82,13 +82,24 @@
                                         :count count
                                         :freshness freshness
                                         :site site))
-         (response (%http-get url :params params)))
+         (response (%http-get url
+                              :params params
+                              :timeout *search-web-timeout*
+                              :headers '(("accept" . "application/json")))))
     (%check-http-status (%response-status response))
     (parse-searxng-results (%json-decode (%body-string (%response-body response)))
                            :count count)))
 
 (defmethod fetch-page ((backend searxng-backend) url)
   (check-type url string)
-  (let ((response (%http-get url)))
+  (when (%binary-url-p url)
+    (return-from fetch-page nil))
+  (when (and (%url-looks-like-pdf url) (null (%doc-extract-package)))
+    (return-from fetch-page nil))
+  (let ((response (%http-get url
+                             :timeout *fetch-page-timeout*
+                             :headers '(("accept" . "text/html,application/xhtml+xml;q=0.9,text/plain;q=0.8,*/*;q=0.1")))))
     (%check-http-status (%response-status response))
-    (extract-page-text (%body-string (%response-body response)) :url url)))
+    (extract-fetched-page (%body-string (%response-body response))
+                          :content-type (%response-header response "content-type")
+                          :url url)))

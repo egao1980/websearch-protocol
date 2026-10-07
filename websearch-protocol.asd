@@ -1,5 +1,5 @@
 (defsystem "websearch-protocol"
-  :version "0.1.0"
+  :version "0.1.1"
   :description "CLOS web search protocol for cl-stack (SearXNG JSON + fetch-page)"
   :author "egao1980"
   :license "MIT"
@@ -16,7 +16,7 @@
   :in-order-to ((test-op (test-op "websearch-protocol/tests"))))
 
 (defsystem "websearch-protocol/capability"
-  :version "0.1.0"
+  :version "0.1.1"
   :description "capability-protocol :web-search adapter over websearch-protocol"
   :author "egao1980"
   :license "MIT"
